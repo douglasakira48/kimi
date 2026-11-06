@@ -148,11 +148,19 @@ h2 { font-size: 20px; font-weight: 700; }
 
 /* Login */
 .auth { max-width: 380px; margin: 0 auto; min-height: 100dvh; padding: 64px 24px; display: flex; flex-direction: column; gap: 28px; justify-content: center; }
+.auth.login { padding-top: 0; justify-content: flex-start; }
+.hero { min-height: 30dvh; padding-top: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
 
 /* Ícones */
 .tile { width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--accent-bg); color: var(--accent); display: flex; align-items: center; justify-content: center; }
 .pay-ico { display: inline-flex; align-items: center; gap: 4px; }
-.logo { width: 56px; height: 56px; border-radius: 16px; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: center; }
+.logo { width: 120px; height: 120px; border-radius: 32px; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: center; }
 .input-ico { position: relative; }
 .input-ico > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--ink2); pointer-events: none; }
 .input-ico > .input { padding-left: 44px; }
+
+/* Navegação de mês */
+.month-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.month-nav a, .month-nav span.off { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: var(--ink); }
+.month-nav span.off { color: var(--field); }
+.check-ok { width: 26px; height: 26px; border-radius: 50%; background: var(--ok); color: #fff; display: flex; align-items: center; justify-content: center; }

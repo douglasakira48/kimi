@@ -4,9 +4,9 @@ import { signInAction } from "../actions";
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ erro?: string }> }) {
   const { erro } = await searchParams;
   return (
-    <main className="auth">
-      <div className="stack-sm" style={{ alignItems: "flex-start", gap: 14 }}>
-        <div className="logo"><Icon name="logo" size={30} /></div>
+    <main className="auth login">
+      <div className="hero">
+        <div className="logo"><Icon name="logo" size={72} /></div>
         <h1>Contas da Casa</h1>
       </div>
       <form action={signInAction} className="stack">

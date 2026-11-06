@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   const cards = new Map((cardRows ?? []).map((c) => [c.id as string, c as Card & { household_id: string }]));
 
   // 1) Mantém os próximos meses de despesas mensais sempre gerados.
-  const horizon = addDays(today, 100);
+  const horizon = addDays(today, 400);
   for (const e of expenses.filter((x) => x.active && x.recurrence === "monthly")) {
     const card = e.card_id ? cards.get(e.card_id) ?? null : null;
     const rows = generateBills(

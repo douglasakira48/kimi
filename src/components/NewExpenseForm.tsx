@@ -47,12 +47,15 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
   const [ruleKind, setRuleKind] = useState<"day" | "business">("day");
   const [n, setN] = useState(5);
   const [date, setDate] = useState(today);
+  const [paidNow, setPaidNow] = useState(false);
 
   const effectivePayment: Payment = mode === "installment" ? "card" : payment;
   const card = cards.find((c) => c.id === cardId) ?? null;
   const usesCard = effectivePayment === "card";
   const effectiveRuleKind = usesCard ? "day" : ruleKind;
   const needsCardButNone = usesCard && cards.length === 0;
+  const canPayNow = mode !== "installment" && !usesCard;
+  const paidNowOn = paidNow && canPayNow;
 
   async function suggest() {
     if (!name.trim() || source === "manual") return;
@@ -108,7 +111,7 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
       const res = await createExpenseAction({
         name, amount, isVariable: mode !== "installment" && isVariable, categoryId: categoryId || null,
         mode, payment: effectivePayment, cardId: usesCard ? cardId || null : null,
-        installments, ruleKind: effectiveRuleKind, n, date,
+        installments, ruleKind: effectiveRuleKind, n, date, paidNow: paidNowOn,
       });
       if (res.ok) {
         router.push("/");
@@ -147,7 +150,7 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
             </label>
           )}
         </div>
-        {isVariable && mode !== "installment" ? (
+        {isVariable && mode !== "installment" && !paidNowOn ? (
           <div className="hint-box">Você informa o valor no aviso, um dia antes do vencimento.</div>
         ) : (
           <div className="prefix">
@@ -159,6 +162,16 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
           </div>
         )}
       </div>
+
+      {canPayNow && (
+        <label htmlFor="paidnow" className="check-line" style={{ cursor: "pointer" }}>
+          <span style={{ fontWeight: 600 }}>
+            Já está paga
+            <span className="small" style={{ display: "block", fontWeight: 400 }}>Marca como paga hoje ao salvar</span>
+          </span>
+          <input id="paidnow" type="checkbox" checked={paidNow} onChange={(e) => setPaidNow(e.target.checked)} />
+        </label>
+      )}
 
       <div className="field">
         <label htmlFor="name">O que é?</label>

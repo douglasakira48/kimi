@@ -70,6 +70,7 @@ export interface NewExpenseInput {
   ruleKind: "day" | "business";
   n: number;
   date: string;
+  paidNow?: boolean;
 }
 
 export async function suggestCategoryAction(name: string) {
@@ -114,6 +115,14 @@ export async function createExpenseAction(
   } else if (!isVariable) {
     amount = parseBRL(input.amount);
     if (amount === null || amount <= 0) return { ok: false, error: "Informe o valor." };
+  }
+
+  // "Já paga": só para despesas à vista (não cartão nem parcelado). Se o valor varia, usa o valor digitado.
+  const paidNow = !!input.paidNow && input.mode !== "installment" && payment !== "card";
+  let paidAmount: number | null = null;
+  if (paidNow) {
+    paidAmount = isVariable ? parseBRL(input.amount) : amount;
+    if (paidAmount === null || paidAmount <= 0) return { ok: false, error: "Informe o valor pago." };
   }
 
   let day_of_month: number | null = null;
@@ -172,7 +181,7 @@ export async function createExpenseAction(
     .single();
   if (error || !created) return { ok: false, error: "Não consegui salvar. Tente de novo." };
 
-  const bills = generateBills(rule, card, addDays(today, 100)).map((b) => ({
+  const bills = generateBills(rule, card, addDays(today, 400)).map((b) => ({
     household_id: member.household_id,
     expense_id: created.id,
     due_date: b.due_date,
@@ -183,6 +192,14 @@ export async function createExpenseAction(
   if (billsError) {
     await sb.from("expenses").delete().eq("id", created.id);
     return { ok: false, error: "Não consegui criar os vencimentos. Tente de novo." };
+  }
+
+  if (paidNow && paidAmount !== null) {
+    await sb
+      .from("bills")
+      .update({ amount: paidAmount, status: "paid", paid_on: today })
+      .eq("expense_id", created.id)
+      .eq("due_date", first_due_date);
   }
 
   // Aprende a escolha: se nenhuma regra cobria esse nome, guarda para a próxima vez.
