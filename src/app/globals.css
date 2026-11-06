@@ -148,3 +148,11 @@ h2 { font-size: 20px; font-weight: 700; }
 
 /* Login */
 .auth { max-width: 380px; margin: 0 auto; min-height: 100dvh; padding: 64px 24px; display: flex; flex-direction: column; gap: 28px; justify-content: center; }
+
+/* Ícones */
+.tile { width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--accent-bg); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.pay-ico { display: inline-flex; align-items: center; gap: 4px; }
+.logo { width: 56px; height: 56px; border-radius: 16px; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: center; }
+.input-ico { position: relative; }
+.input-ico > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--ink2); pointer-events: none; }
+.input-ico > .input { padding-left: 44px; }

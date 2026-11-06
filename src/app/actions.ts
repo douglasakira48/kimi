@@ -23,7 +23,7 @@ async function requireMember() {
 export async function signInAction(formData: FormData) {
   const sb = await createClient();
   const { error } = await sb.auth.signInWithPassword({
-    email: String(formData.get("email") ?? "").trim(),
+    email: `${String(formData.get("user") ?? "").trim().toLowerCase().replace(/[^a-z0-9._-]/g, "")}@casa.local`,
     password: String(formData.get("password") ?? ""),
   });
   if (error) redirect("/login?erro=1");

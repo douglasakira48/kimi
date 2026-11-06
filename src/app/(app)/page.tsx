@@ -3,6 +3,7 @@ import { loadLookups, paymentLabel, toBill, type Lookups } from "@/lib/data";
 import {
   addDays, daysInMonth, formatCurto, formatExtenso, mesNome, parseYMD, todayInSP, toYMD,
 } from "@/lib/dates";
+import Icon, { categoryIconName, paymentIconName } from "@/components/Icon";
 import { formatBRL } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 import type { Bill } from "@/lib/types";
@@ -29,6 +30,7 @@ function BillRow({ bill, lk, today }: { bill: Bill; lk: Lookups; today: string }
 
   return (
     <div className="bill">
+      <div className="tile"><Icon name={categoryIconName(expense.category_id ? lk.categories.get(expense.category_id)?.name : null)} size={20} /></div>
       <Link href={`/pagar/${bill.id}`} className="check" aria-label={`Marcar ${expense.name} como paga`}>
         <span className="dot" />
       </Link>
@@ -42,7 +44,7 @@ function BillRow({ bill, lk, today }: { bill: Bill; lk: Lookups; today: string }
         ) : (
           <span className="bill-amount">{formatBRL(bill.amount)}</span>
         )}
-        <span className="bill-meta">{paymentLabel(expense, lk.cards)}</span>
+        <span className="bill-meta pay-ico"><Icon name={paymentIconName(expense.payment_method)} size={14} />{paymentLabel(expense, lk.cards)}</span>
       </div>
     </div>
   );
