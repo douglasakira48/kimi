@@ -142,7 +142,8 @@ export async function createExpenseAction(
 
   let first_due_date: YMD;
   if (input.mode === "monthly") {
-    first_due_date = firstMonthlyDue(base, card, today);
+    // Começa no mês atual, mesmo que o vencimento já tenha passado (aparece como atrasada até ser paga).
+    first_due_date = firstMonthlyDue(base, card, `${today.slice(0, 8)}01` as YMD);
   } else if (payment === "card" && card) {
     first_due_date = cardDueDate(date, card.closing_day, card.due_day);
   } else {
