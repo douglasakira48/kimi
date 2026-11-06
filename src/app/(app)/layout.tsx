@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import AppLock from "@/components/AppLock";
 import BottomNav from "@/components/BottomNav";
+import TopBar from "@/components/TopBar";
 import { getMember } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!member) redirect("/onboarding");
   return (
     <AppLock>
-      <main className="shell">{children}</main>
+      <main className="shell"><TopBar />{children}</main>
       <BottomNav />
     </AppLock>
   );
