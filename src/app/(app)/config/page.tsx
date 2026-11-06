@@ -1,3 +1,4 @@
+import LockSettings from "@/components/LockSettings";
 import TelegramLink from "@/components/TelegramLink";
 import { addCardAction, addRuleAction, deleteCardAction, deleteRuleAction, endExpenseAction, signOutAction } from "@/app/actions";
 import { getMember, loadLookups } from "@/lib/data";
@@ -72,6 +73,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </form>
         )}
         {cards.length >= 5 && <p className="small">Você já usa os 5 cartões que cabem na casa.</p>}
+      </section>
+
+      <section className="stack" style={{ gap: 12 }} aria-label="Bloqueio do app">
+        <h2>Bloqueio do app</h2>
+        <LockSettings />
       </section>
 
       <section className="stack" style={{ gap: 12 }} aria-label="Avisos no Telegram">

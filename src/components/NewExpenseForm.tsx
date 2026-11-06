@@ -97,7 +97,7 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
         installments: null, amount: null, total_amount: null, is_variable: true,
       },
       card,
-      today,
+      `${today.slice(0, 8)}01`,
     );
     preview = [`Próximo vencimento: ${formatCurto(next)}`];
   } else if (mode === "once" && usesCard && card) {

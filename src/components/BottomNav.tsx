@@ -9,6 +9,9 @@ export default function BottomNav() {
   const onPanel = path.startsWith("/painel");
   const onConfig = path.startsWith("/config");
 
+  // Telas com botão fixo embaixo (cadastro e pagamento) ficam sem a barra, para o botão não ser coberto.
+  if (path.startsWith("/nova") || path.startsWith("/pagar")) return null;
+
   return (
     <nav className="nav" aria-label="Navegação principal">
       <div className="nav-inner">
