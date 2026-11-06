@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 const P: Record<string, ReactNode> = {
-  logo: <><path d="M3 11l9-7 9 7" /><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" /><path d="M9.5 15.5h5M12 13v5" /></>,
+  logo: <><path d="M2.5 11.5L12 3l9.5 8.5" /><path d="M5 10v10.5h14V10" /><path d="M15 13.6c0-1-1-1.6-3-1.6s-3 .7-3 1.7c0 2.2 6 1.1 6 3.4 0 1-1.1 1.7-3 1.7s-3-.7-3-1.7" /><path d="M12 11v9" /></>,
   casa: <><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" /></>,
   comida: <><path d="M7 3v8a2 2 0 0 0 2 2v8M11 3v8a2 2 0 0 1-2 2M9 3v6" /><path d="M17 3c-2 1.5-3 4-3 7h3v11" /></>,
   lazer: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18M8 5l2 4M14 5l2 4" /></>,
