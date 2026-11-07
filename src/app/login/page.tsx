@@ -6,7 +6,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="auth login">
       <div className="hero">
-        <div className="logo"><Icon name="logo" size={72} /></div>
+        <img src="/icons/icon-512.png" alt="" width={120} height={120} className="logo-img" />
         <h1>Contas da Casa</h1>
       </div>
       <form action={signInAction} className="stack">

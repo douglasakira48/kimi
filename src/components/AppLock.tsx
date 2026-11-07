@@ -5,7 +5,6 @@ import { signOutAction } from "@/app/actions";
 import {
   GRACE_MS, biometricEnabled, checkPin, disableLock, lockEnabled, verifyBiometric, waitSeconds,
 } from "@/lib/applock";
-import Icon from "./Icon";
 
 export default function AppLock({ children }: { children: React.ReactNode }) {
   const [locked, setLocked] = useState(false);
@@ -77,7 +76,7 @@ export default function AppLock({ children }: { children: React.ReactNode }) {
       <div aria-hidden={locked} style={locked ? { visibility: "hidden" } : undefined}>{children}</div>
       {locked && (
         <div className="lock" role="dialog" aria-label="App bloqueado">
-          <div className="logo"><Icon name="logo" size={72} /></div>
+          <img src="/icons/icon-512.png" alt="" width={110} height={110} className="logo-img" />
           <h1 style={{ fontSize: 24 }}>Contas da Casa</h1>
           <div className="stack" style={{ gap: 14, width: "100%", maxWidth: 280 }}>
             <label htmlFor="pin" className="muted" style={{ textAlign: "center" }}>Digite o PIN</label>
