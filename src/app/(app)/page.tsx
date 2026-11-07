@@ -14,7 +14,7 @@ function diasAtraso(due: string, today: string): number {
   return Math.round((Date.UTC(b.y, b.m - 1, b.d) - Date.UTC(a.y, a.m - 1, a.d)) / 86400000);
 }
 
-function BillRow({ bill, lk, today }: { bill: Bill; lk: Lookups; today: string }) {
+function BillRow({ bill, lk, today, last }: { bill: Bill; lk: Lookups; today: string; last?: number }) {
   const expense = lk.expenses.get(bill.expense_id);
   if (!expense) return null;
   const paid = bill.status === "paid";
@@ -52,7 +52,10 @@ function BillRow({ bill, lk, today }: { bill: Bill; lk: Lookups; today: string }
       </div>
       <div className="bill-value">
         {bill.amount === null ? (
-          <Link href={`/pagar/${bill.id}`} className="chip-ask">Informar valor</Link>
+          <>
+            <Link href={`/pagar/${bill.id}`} className="chip-ask">Informar valor</Link>
+            {last !== undefined && <span className="bill-meta num">último {formatBRL(last)}</span>}
+          </>
         ) : (
           <span className="bill-amount">{formatBRL(bill.amount + (paid ? bill.interest : 0))}</span>
         )}
@@ -116,6 +119,18 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     pending = all.filter((b) => b.status === "pending");
     paidBills = all.filter((b) => b.status === "paid");
     paid = paidBills.reduce((acc, b) => acc + (b.amount ?? 0) + b.interest, 0);
+  }
+
+  // Último valor pago de cada despesa, para mostrar como referência nas contas de valor variável.
+  const lastPaid = new Map<string, number>();
+  const unknownIds = Array.from(new Set(pending.filter((b) => b.amount === null).map((b) => b.expense_id)));
+  if (unknownIds.length > 0) {
+    const { data: lastRows } = await sb
+      .from("bills").select("expense_id,amount,due_date").in("expense_id", unknownIds).eq("status", "paid")
+      .not("amount", "is", null).order("due_date", { ascending: false });
+    for (const r of lastRows ?? []) {
+      if (!lastPaid.has(r.expense_id as string)) lastPaid.set(r.expense_id as string, Number(r.amount));
+    }
   }
 
   const inMonth = pending.filter((b) => b.due_date <= monthEnd);
@@ -191,7 +206,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <section key={g.label} aria-label={g.label}>
             <div className={`group-label ${g.late ? "late" : ""}`}>{g.label}</div>
             {g.items.map((b) => (
-              <BillRow key={b.id} bill={b} lk={lk} today={today} />
+              <BillRow key={b.id} bill={b} lk={lk} today={today} last={lastPaid.get(b.expense_id)} />
             ))}
           </section>
         ))}

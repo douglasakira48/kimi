@@ -30,6 +30,13 @@ export default async function PayPage({
   const { data: e } = await sb.from("expenses").select("*").eq("id", bill.expense_id).single();
   const expense = toExpense(e!);
   const today = todayInSP();
+  let lastAmount: number | null = null;
+  if (bill.amount === null) {
+    const { data: last } = await sb
+      .from("bills").select("amount").eq("expense_id", bill.expense_id).eq("status", "paid")
+      .not("amount", "is", null).order("due_date", { ascending: false }).limit(1).maybeSingle();
+    lastAmount = last?.amount !== undefined && last?.amount !== null ? Number(last.amount) : null;
+  }
   const late = bill.status === "pending" && bill.due_date < today;
 
   return (
@@ -67,7 +74,7 @@ export default async function PayPage({
         <PayForm
           billId={bill.id}
           today={today}
-          defaultAmount={bill.amount !== null ? String(bill.amount).replace(".", ",") : ""}
+          defaultAmount={(bill.amount ?? lastAmount) !== null ? String(bill.amount ?? lastAmount).replace(".", ",") : ""}
         />
       )}
     </div>
