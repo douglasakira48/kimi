@@ -105,9 +105,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   let paid: number;
 
   if (isCurrent) {
-    const limit = addDays(today, 30) > monthEnd ? addDays(today, 30) : monthEnd;
     const [pendingRes, paidRes] = await Promise.all([
-      sb.from("bills").select("*").eq("status", "pending").lte("due_date", limit).order("due_date"),
+      sb.from("bills").select("*").eq("status", "pending").lte("due_date", monthEnd).order("due_date"),
       sb.from("bills").select("amount,interest").eq("status", "paid").gte("due_date", monthStart).lte("due_date", monthEnd),
     ]);
     pending = (pendingRes.data ?? []).map(toBill);
@@ -144,7 +143,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         { label: "Atrasadas", late: true, items: pending.filter((b) => b.due_date < today) },
         { label: "Hoje", late: false, items: pending.filter((b) => b.due_date === today) },
         { label: "Amanhã", late: false, items: pending.filter((b) => b.due_date === tomorrow) },
-        { label: "Próximas", late: false, items: pending.filter((b) => b.due_date > tomorrow && b.due_date <= addDays(today, 30)) },
+        { label: "Próximas", late: false, items: pending.filter((b) => b.due_date > tomorrow && b.due_date <= monthEnd) },
       ]
     : [
         { label: "A pagar", late: false, items: pending },
@@ -198,7 +197,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         {shown.length === 0 && (
           <p className="empty">
             {isCurrent
-              ? "Nada vencendo nos próximos 30 dias. Toque no + para cadastrar uma despesa."
+              ? "Nada pendente neste mês. Toque no + para cadastrar uma despesa."
               : "Nenhuma conta neste mês."}
           </p>
         )}
