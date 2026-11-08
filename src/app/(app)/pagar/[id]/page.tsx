@@ -77,6 +77,9 @@ export default async function PayPage({
           defaultAmount={(bill.amount ?? lastAmount) !== null ? String(bill.amount ?? lastAmount).replace(".", ",") : ""}
         />
       )}
+      <Link href={`/editar/${expense.id}`} className="btn secondary" style={{ textAlign: "center" }}>
+        Editar despesa
+      </Link>
     </div>
   );
 }

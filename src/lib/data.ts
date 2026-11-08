@@ -51,7 +51,7 @@ export interface Lookups {
 export async function loadLookups(sb: SupabaseClient): Promise<Lookups> {
   const [e, c, k] = await Promise.all([
     sb.from("expenses").select("*"),
-    sb.from("cards").select("id,name,closing_day,due_day").order("created_at"),
+    sb.from("cards").select("id,name,closing_day,due_day,kind").order("created_at"),
     sb.from("categories").select("id,name").order("name"),
   ]);
   return {
@@ -76,5 +76,9 @@ export async function getMember(sb: SupabaseClient): Promise<Member | null> {
 
 export function paymentLabel(e: Expense, cards: Map<string, Card>): string {
   if (e.payment_method === "card") return (e.card_id && cards.get(e.card_id)?.name) || PAYMENT_LABEL.card;
+  if (e.payment_method === "debit" && e.card_id) {
+    const name = cards.get(e.card_id)?.name;
+    if (name) return `Débito ${name}`;
+  }
   return PAYMENT_LABEL[e.payment_method];
 }

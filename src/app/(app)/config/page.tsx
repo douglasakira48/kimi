@@ -1,3 +1,5 @@
+import CardKindFields from "@/components/CardKindFields";
+import Link from "next/link";
 import LockSettings from "@/components/LockSettings";
 import TelegramLink from "@/components/TelegramLink";
 import { addCardAction, addRuleAction, deleteCardAction, deleteRuleAction, endExpenseAction, signOutAction } from "@/app/actions";
@@ -48,7 +50,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <input type="hidden" name="id" value={c.id} />
             <div className="stack-sm" style={{ gap: 0 }}>
               <span style={{ fontWeight: 600 }}>{c.name}</span>
-              <span className="small">Fecha dia {c.closing_day}, vence dia {c.due_day}</span>
+              <span className="small">{c.kind === "debit" ? "Débito" : `Crédito, fecha dia ${c.closing_day}, vence dia ${c.due_day}`}</span>
             </div>
             <button type="submit" className="btn small danger" aria-label={`Apagar ${c.name}`}>Apagar</button>
           </form>
@@ -59,16 +61,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <label htmlFor="card-name">Nome do cartão</label>
               <input id="card-name" name="name" className="input lg" maxLength={40} required />
             </div>
-            <div style={{ display: "flex", gap: 16 }}>
-              <div className="field" style={{ flex: 1 }}>
-                <label htmlFor="closing">Fecha no dia</label>
-                <input id="closing" name="closing" type="number" min={1} max={31} inputMode="numeric" className="input lg" required />
-              </div>
-              <div className="field" style={{ flex: 1 }}>
-                <label htmlFor="due">Vence no dia</label>
-                <input id="due" name="due" type="number" min={1} max={31} inputMode="numeric" className="input lg" required />
-              </div>
-            </div>
+            <CardKindFields />
             <button type="submit" className="btn secondary">Adicionar cartão</button>
           </form>
         )}
@@ -147,7 +140,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                   <span style={{ fontWeight: 600 }}>{e.name}</span>
                   <span className="small num">{resumo(e)}</span>
                 </div>
-                <button type="submit" className="btn small danger">Encerrar</button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Link href={`/editar/${e.id}`} className="btn small secondary">Editar</Link>
+                  <button type="submit" className="btn small danger">Encerrar</button>
+                </div>
               </form>
             ))}
           </div>

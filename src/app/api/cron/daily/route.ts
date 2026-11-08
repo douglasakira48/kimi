@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 
   const [{ data: expRows }, { data: cardRows }, { data: memberRows }] = await Promise.all([
     admin.from("expenses").select("*, household_id"),
-    admin.from("cards").select("id,name,closing_day,due_day,household_id"),
+    admin.from("cards").select("id,name,closing_day,due_day,kind,household_id"),
     admin.from("members").select("user_id,household_id,display_name,telegram_chat_id").not("telegram_chat_id", "is", null),
   ]);
   const expenses = (expRows ?? []).map((r) => ({ ...toExpense(r), household_id: r.household_id as string }));

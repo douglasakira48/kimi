@@ -51,7 +51,7 @@ async function billContext(admin: Admin, billId: string, householdId: string) {
   const bill = toBill(row);
   const { data: e } = await admin.from("expenses").select("*").eq("id", bill.expense_id).single();
   const expense = toExpense(e!);
-  const { data: cards } = await admin.from("cards").select("id,name,closing_day,due_day").eq("household_id", householdId);
+  const { data: cards } = await admin.from("cards").select("id,name,closing_day,due_day,kind").eq("household_id", householdId);
   const cardMap = new Map((cards ?? []).map((c) => [c.id as string, c as Card]));
   const info = {
     id: bill.id,

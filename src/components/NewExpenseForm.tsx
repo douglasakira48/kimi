@@ -13,6 +13,7 @@ interface CardOpt {
   name: string;
   closing_day: number;
   due_day: number;
+  kind: "credit" | "debit";
 }
 
 interface Props {
@@ -42,7 +43,9 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
   const [categoryId, setCategoryId] = useState("");
   const [source, setSource] = useState<"rule" | "ai" | "none" | "manual">("none");
   const [payment, setPayment] = useState<Payment>("pix");
-  const [cardId, setCardId] = useState(cards[0]?.id ?? "");
+  const creditCards = cards.filter((c) => c.kind === "credit");
+  const debitCards = cards.filter((c) => c.kind === "debit");
+  const [cardId, setCardId] = useState("");
   const [installments, setInstallments] = useState(12);
   const [ruleKind, setRuleKind] = useState<"day" | "business">("day");
   const [n, setN] = useState(5);
@@ -50,10 +53,10 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
   const [paidNow, setPaidNow] = useState(false);
 
   const effectivePayment: Payment = mode === "installment" ? "card" : payment;
-  const card = cards.find((c) => c.id === cardId) ?? null;
+  const card = creditCards.find((c) => c.id === cardId) ?? null;
   const usesCard = effectivePayment === "card";
   const effectiveRuleKind = usesCard ? "day" : ruleKind;
-  const needsCardButNone = usesCard && cards.length === 0;
+  const needsCardButNone = usesCard && creditCards.length === 0;
   const canPayNow = mode !== "installment" && !usesCard;
   const paidNowOn = paidNow && canPayNow;
 
@@ -68,7 +71,10 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
 
   function pickMode(m: Mode) {
     setMode(m);
-    if (m === "installment") setIsVariable(false);
+    if (m === "installment") {
+      setIsVariable(false);
+      if (!creditCards.some((c) => c.id === cardId)) setCardId(creditCards[0]?.id ?? "");
+    }
   }
 
   function setRule(kind: "day" | "business") {
@@ -110,7 +116,7 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
     startTransition(async () => {
       const res = await createExpenseAction({
         name, amount, isVariable: mode !== "installment" && isVariable, categoryId: categoryId || null,
-        mode, payment: effectivePayment, cardId: usesCard ? cardId || null : null,
+        mode, payment: effectivePayment, cardId: usesCard || effectivePayment === "debit" ? cardId || null : null,
         installments, ruleKind: effectiveRuleKind, n, date, paidNow: paidNowOn,
       });
       if (res.ok) {
@@ -124,13 +130,15 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
 
   const paymentOptions: { id: Payment | string; label: string; payment: Payment; cardId?: string }[] =
     mode === "installment"
-      ? cards.map((c) => ({ id: c.id, label: c.name, payment: "card", cardId: c.id }))
+      ? creditCards.map((c) => ({ id: c.id, label: c.name, payment: "card", cardId: c.id }))
       : [
           { id: "pix", label: "PIX", payment: "pix" },
-          { id: "debit", label: "Débito", payment: "debit" },
+          ...(debitCards.length === 0
+            ? [{ id: "debit", label: "Débito", payment: "debit" as Payment }]
+            : debitCards.map((c) => ({ id: c.id, label: `Débito ${c.name}`, payment: "debit" as Payment, cardId: c.id }))),
           { id: "cash", label: "Dinheiro", payment: "cash" },
           { id: "boleto", label: "Boleto", payment: "boleto" },
-          ...cards.map((c) => ({ id: c.id, label: c.name, payment: "card" as Payment, cardId: c.id })),
+          ...creditCards.map((c) => ({ id: c.id, label: c.name, payment: "card" as Payment, cardId: c.id })),
         ];
 
   return (
@@ -258,11 +266,13 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
         <span className="label" id="pay-label">{mode === "installment" ? "Cartão" : "Como paga"}</span>
         <div className="chips" role="group" aria-labelledby="pay-label">
           {paymentOptions.map((o) => {
-            const selected = o.payment === "card" ? effectivePayment === "card" && cardId === o.cardId : effectivePayment === o.payment;
+            const selected = o.cardId
+              ? effectivePayment === o.payment && cardId === o.cardId
+              : effectivePayment === o.payment && (o.payment !== "debit" || !debitCards.some((c) => c.id === cardId));
             return (
               <button
                 key={o.id} type="button" className={`chip ${selected ? "on" : ""}`} aria-pressed={selected}
-                onClick={() => { setPayment(o.payment); if (o.cardId) setCardId(o.cardId); }}
+                onClick={() => { setPayment(o.payment); setCardId(o.cardId ?? ""); }}
               >
                 {o.label}
               </button>

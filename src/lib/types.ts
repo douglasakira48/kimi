@@ -23,6 +23,7 @@ export interface Card {
   name: string;
   closing_day: number;
   due_day: number;
+  kind: "credit" | "debit";
 }
 
 export interface Expense {

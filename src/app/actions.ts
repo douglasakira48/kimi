@@ -94,11 +94,16 @@ export async function createExpenseAction(
   const payment = input.mode === "installment" ? "card" : input.payment;
 
   let card: { id: string; closing_day: number; due_day: number } | null = null;
+  let debitCardId: string | null = null;
   if (payment === "card") {
     if (!input.cardId) return { ok: false, error: "Escolha o cartão." };
-    const { data } = await sb.from("cards").select("id,closing_day,due_day").eq("id", input.cardId).maybeSingle();
-    if (!data) return { ok: false, error: "Cartão não encontrado." };
+    const { data } = await sb.from("cards").select("id,closing_day,due_day,kind").eq("id", input.cardId).maybeSingle();
+    if (!data || data.kind !== "credit") return { ok: false, error: "Cartão de crédito não encontrado." };
     card = data;
+  } else if (payment === "debit" && input.cardId) {
+    const { data } = await sb.from("cards").select("id,kind").eq("id", input.cardId).maybeSingle();
+    if (!data || data.kind !== "debit") return { ok: false, error: "Cartão de débito não encontrado." };
+    debitCardId = data.id;
   }
 
   let amount: number | null = null;
@@ -170,7 +175,7 @@ export async function createExpenseAction(
       is_variable: isVariable,
       category_id: input.categoryId,
       payment_method: payment,
-      card_id: card?.id ?? null,
+      card_id: card?.id ?? debitCardId,
       recurrence: input.mode,
       day_of_month,
       business_day,
@@ -213,6 +218,61 @@ export async function createExpenseAction(
           { onConflict: "household_id,keyword" },
         );
     }
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export interface UpdateExpenseInput {
+  id: string;
+  name: string;
+  categoryId: string | null;
+  payment: "pix" | "boleto" | "debit" | "cash" | "card";
+  cardId: string | null;
+  amount: string;
+}
+
+export async function updateExpenseAction(
+  input: UpdateExpenseInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { sb } = await requireMember();
+  const { data: row } = await sb.from("expenses").select("*").eq("id", input.id).maybeSingle();
+  if (!row) return { ok: false, error: "Despesa não encontrada." };
+
+  const name = input.name.trim().slice(0, 80);
+  if (!name) return { ok: false, error: "Diga o que é a despesa." };
+
+  const isCredit = row.payment_method === "card";
+  let payment = row.payment_method as string;
+  let cardId: string | null = row.card_id;
+  if (!isCredit) {
+    if (input.payment === "card") return { ok: false, error: "Para usar cartão de crédito, apague e cadastre de novo." };
+    payment = input.payment;
+    cardId = null;
+    if (payment === "debit" && input.cardId) {
+      const { data } = await sb.from("cards").select("id,kind").eq("id", input.cardId).maybeSingle();
+      if (!data || data.kind !== "debit") return { ok: false, error: "Cartão de débito não encontrado." };
+      cardId = data.id;
+    }
+  }
+
+  const editAmount = row.recurrence !== "installment" && !row.is_variable;
+  let amount: number | null = row.amount === null ? null : Number(row.amount);
+  if (editAmount) {
+    amount = parseBRL(input.amount);
+    if (amount === null || amount <= 0) return { ok: false, error: "Informe o valor." };
+  }
+
+  const { error } = await sb
+    .from("expenses")
+    .update({ name, category_id: input.categoryId, payment_method: payment, card_id: cardId, amount })
+    .eq("id", input.id);
+  if (error) return { ok: false, error: "Não consegui salvar. Tente de novo." };
+
+  // O novo valor vale para as contas ainda não pagas; o que já foi pago não muda.
+  if (editAmount) {
+    await sb.from("bills").update({ amount }).eq("expense_id", input.id).eq("status", "pending");
   }
 
   revalidatePath("/", "layout");
@@ -265,13 +325,15 @@ export async function reopenBillAction(formData: FormData) {
 export async function addCardAction(formData: FormData) {
   const { sb, member } = await requireMember();
   const name = String(formData.get("name") ?? "").trim().slice(0, 40);
-  const closing = Number(formData.get("closing"));
-  const due = Number(formData.get("due"));
+  const kind = formData.get("kind") === "debit" ? "debit" : "credit";
+  // Cartão de débito não tem fatura: guarda 1 nos dias só para satisfazer o banco.
+  const closing = kind === "debit" ? 1 : Number(formData.get("closing"));
+  const due = kind === "debit" ? 1 : Number(formData.get("due"));
   const ok = (n: number) => Number.isInteger(n) && n >= 1 && n <= 31;
   if (!name || !ok(closing) || !ok(due)) redirect("/config?erro=cartao-invalido");
   const { error } = await sb
     .from("cards")
-    .insert({ household_id: member.household_id, name, closing_day: closing, due_day: due });
+    .insert({ household_id: member.household_id, name, closing_day: closing, due_day: due, kind });
   if (error) redirect("/config?erro=cartao-limite");
   revalidatePath("/", "layout");
   redirect("/config");
