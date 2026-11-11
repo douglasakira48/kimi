@@ -1,6 +1,7 @@
 import { generateBills } from "@/lib/bills";
 import { paymentLabel, toBill, toExpense } from "@/lib/data";
 import { addDays, todayInSP } from "@/lib/dates";
+import { lastKnownAmount } from "@/lib/estimates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { askAmountMessage, noticeMessage, sameSecret, sendMessage } from "@/lib/telegram";
 import type { Card } from "@/lib/types";
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
 
   const [{ data: expRows }, { data: cardRows }, { data: memberRows }] = await Promise.all([
     admin.from("expenses").select("*, household_id"),
-    admin.from("cards").select("id,name,closing_day,due_day,kind,household_id"),
+    admin.from("cards").select("id,name,closing_day,due_day,kind,owner_user_id,household_id"),
     admin.from("members").select("user_id,household_id,display_name,telegram_chat_id").not("telegram_chat_id", "is", null),
   ]);
   const expenses = (expRows ?? []).map((r) => ({ ...toExpense(r), household_id: r.household_id as string }));
@@ -29,6 +30,7 @@ export async function GET(req: Request) {
   const horizon = addDays(today, 400);
   for (const e of expenses.filter((x) => x.active && x.recurrence === "monthly")) {
     const card = e.card_id ? cards.get(e.card_id) ?? null : null;
+    const last = e.is_variable ? await lastKnownAmount(admin, e.id) : null;
     const rows = generateBills(
       {
         recurrence: "monthly",
@@ -47,7 +49,8 @@ export async function GET(req: Request) {
       household_id: e.household_id,
       expense_id: e.id,
       due_date: b.due_date,
-      amount: b.amount,
+      amount: b.amount ?? last,
+      is_estimate: b.amount === null && last !== null,
     }));
     if (rows.length === 0) continue;
     const { data } = await admin
@@ -87,14 +90,15 @@ export async function GET(req: Request) {
       installment:
         bill.installment_no && expense.installments ? `parcela ${bill.installment_no} de ${expense.installments}` : undefined,
     };
-    const msg = bill.amount === null ? askAmountMessage(info, overdue) : noticeMessage(info, overdue);
+    const needsAmount = bill.amount === null || bill.is_estimate;
+    const msg = needsAmount ? askAmountMessage(info, overdue) : noticeMessage(info, overdue);
 
     let sent = 0;
     for (const m of (memberRows ?? []).filter((x) => x.household_id === bill.household_id)) {
       const ok = await sendMessage(m.telegram_chat_id as number, msg.text, msg.buttons);
       if (!ok) continue;
       sent++;
-      if (bill.amount === null) {
+      if (needsAmount) {
         await admin.from("telegram_prompts").insert({ chat_id: m.telegram_chat_id, bill_id: bill.id, kind: "ask_amount" });
       }
     }

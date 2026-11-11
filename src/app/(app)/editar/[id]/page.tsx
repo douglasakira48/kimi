@@ -34,7 +34,9 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
           amount: expense.amount,
           recurrence: expense.recurrence,
           isVariable: expense.is_variable,
+          ownerId: expense.owner_user_id,
         }}
+        members={lk.members}
         categories={Array.from(lk.categories.values())}
         debitCards={cards.filter((c) => c.kind === "debit").map((c) => ({ id: c.id, name: c.name }))}
         creditName={creditName}

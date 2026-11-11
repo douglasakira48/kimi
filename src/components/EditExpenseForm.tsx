@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { updateExpenseAction } from "@/app/actions";
+import OwnerField from "@/components/OwnerField";
 
 type Payment = "pix" | "boleto" | "card" | "debit" | "cash";
 
@@ -16,13 +17,15 @@ interface Props {
     amount: number | null;
     recurrence: "once" | "monthly" | "installment";
     isVariable: boolean;
+    ownerId: string | null;
   };
+  members: { user_id: string; display_name: string }[];
   categories: { id: string; name: string }[];
   debitCards: { id: string; name: string }[];
   creditName: string | null;
 }
 
-export default function EditExpenseForm({ expense, categories, debitCards, creditName }: Props) {
+export default function EditExpenseForm({ expense, categories, debitCards, creditName, members }: Props) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [error, setError] = useState("");
@@ -32,8 +35,11 @@ export default function EditExpenseForm({ expense, categories, debitCards, credi
   const [cardId, setCardId] = useState(expense.cardId ?? "");
   const [amount, setAmount] = useState(expense.amount !== null ? String(expense.amount).replace(".", ",") : "");
 
+  const [ownerId, setOwnerId] = useState(expense.ownerId ?? "");
+  const [isVariable, setIsVariable] = useState(expense.isVariable);
   const isCredit = expense.payment === "card";
-  const editAmount = expense.recurrence !== "installment" && !expense.isVariable;
+  const canToggle = expense.recurrence === "monthly";
+  const editAmount = expense.recurrence !== "installment" && !isVariable;
 
   const options: { id: string; label: string; payment: Payment; cardId: string }[] = [
     { id: "pix", label: "PIX", payment: "pix", cardId: "" },
@@ -51,6 +57,7 @@ export default function EditExpenseForm({ expense, categories, debitCards, credi
       const res = await updateExpenseAction({
         id: expense.id, name, categoryId: categoryId || null, payment,
         cardId: payment === "debit" ? cardId || null : null, amount,
+        ownerId: ownerId || null, isVariable: canToggle ? isVariable : undefined,
       });
       if (res.ok) {
         router.push("/");
@@ -70,6 +77,16 @@ export default function EditExpenseForm({ expense, categories, debitCards, credi
         <input id="name" className="input lg" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
       </div>
 
+      {canToggle && (
+        <label htmlFor="variable" className="check-line" style={{ cursor: "pointer" }}>
+          <span style={{ fontWeight: 600 }}>
+            Valor muda todo mês
+            <span className="small" style={{ display: "block", fontWeight: 400 }}>Os próximos meses usam o último valor como estimativa</span>
+          </span>
+          <input id="variable" type="checkbox" checked={isVariable} onChange={(e) => setIsVariable(e.target.checked)} />
+        </label>
+      )}
+
       {editAmount && (
         <div className="field">
           <label htmlFor="amount">Valor</label>
@@ -79,6 +96,8 @@ export default function EditExpenseForm({ expense, categories, debitCards, credi
           </div>
         </div>
       )}
+
+      <OwnerField members={members} value={ownerId} onChange={setOwnerId} />
 
       <div className="field">
         <label htmlFor="category">Categoria</label>

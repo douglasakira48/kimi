@@ -50,7 +50,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <input type="hidden" name="id" value={c.id} />
             <div className="stack-sm" style={{ gap: 0 }}>
               <span style={{ fontWeight: 600 }}>{c.name}</span>
-              <span className="small">{c.kind === "debit" ? "Débito" : `Crédito, fecha dia ${c.closing_day}, vence dia ${c.due_day}`}</span>
+              <span className="small">{c.kind === "debit" ? "Débito" : `Crédito, fecha dia ${c.closing_day}, vence dia ${c.due_day}`}{c.owner_user_id ? `, de ${lk.members.find((x) => x.user_id === c.owner_user_id)?.display_name ?? ""}` : ""}</span>
             </div>
             <button type="submit" className="btn small danger" aria-label={`Apagar ${c.name}`}>Apagar</button>
           </form>
@@ -61,7 +61,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <label htmlFor="card-name">Nome do cartão</label>
               <input id="card-name" name="name" className="input lg" maxLength={40} required />
             </div>
-            <CardKindFields />
+            <CardKindFields members={lk.members} defaultOwner={member?.user_id ?? ""} />
             <button type="submit" className="btn secondary">Adicionar cartão</button>
           </form>
         )}

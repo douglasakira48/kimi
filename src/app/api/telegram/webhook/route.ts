@@ -1,3 +1,4 @@
+import { propagateEstimate } from "@/lib/estimates";
 import { toBill, toExpense, paymentLabel } from "@/lib/data";
 import { todayInSP } from "@/lib/dates";
 import { parseBRL } from "@/lib/money";
@@ -51,7 +52,7 @@ async function billContext(admin: Admin, billId: string, householdId: string) {
   const bill = toBill(row);
   const { data: e } = await admin.from("expenses").select("*").eq("id", bill.expense_id).single();
   const expense = toExpense(e!);
-  const { data: cards } = await admin.from("cards").select("id,name,closing_day,due_day,kind").eq("household_id", householdId);
+  const { data: cards } = await admin.from("cards").select("id,name,closing_day,due_day,kind,owner_user_id").eq("household_id", householdId);
   const cardMap = new Map((cards ?? []).map((c) => [c.id as string, c as Card]));
   const info = {
     id: bill.id,
@@ -125,7 +126,8 @@ async function onText(admin: Admin, chatId: number, text: string) {
 
   const ctx = await billContext(admin, prompt.bill_id, member.household_id);
   if (!ctx) return;
-  await admin.from("bills").update({ amount }).eq("id", ctx.bill.id);
+  await admin.from("bills").update({ amount, is_estimate: false }).eq("id", ctx.bill.id);
+  if (ctx.expense.is_variable) await propagateEstimate(admin, ctx.expense.id, ctx.bill.due_date, amount);
   await admin.from("telegram_prompts").update({ answered_at: new Date().toISOString() }).eq("bill_id", ctx.bill.id);
   const msg = amountSavedMessage(ctx.info, amount);
   await sendMessage(chatId, msg.text, msg.buttons);
@@ -150,8 +152,8 @@ async function onButton(admin: Admin, cb: NonNullable<Update["callback_query"]>)
   }
   if (ctx.bill.status === "paid") {
     await answerCallback(cb.id, "Essa conta já estava paga.");
-  } else if (ctx.bill.amount === null) {
-    await answerCallback(cb.id, "Falta informar o valor da conta.");
+  } else if (ctx.bill.amount === null || ctx.bill.is_estimate) {
+    await answerCallback(cb.id, "Falta confirmar o valor real da conta.");
     return;
   } else {
     await admin

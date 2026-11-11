@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { generateBills, firstMonthlyDue, type ExpenseRule } from "@/lib/bills";
 import { matchRule, normalize, suggestCategory } from "@/lib/categorize";
 import { getMember } from "@/lib/data";
+import { propagateEstimate } from "@/lib/estimates";
 import { addDays, cardDueDate, todayInSP, type YMD } from "@/lib/dates";
 import { parseBRL, round2, splitInstallments } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
@@ -71,6 +72,17 @@ export interface NewExpenseInput {
   n: number;
   date: string;
   paidNow?: boolean;
+  ownerId?: string | null;
+}
+
+/** Só aceita como dono alguém que é da casa; qualquer outra coisa vira "casa" (sem dono). */
+async function validOwner(
+  sb: Awaited<ReturnType<typeof createClient>>,
+  ownerId: string | null | undefined,
+): Promise<string | null> {
+  if (!ownerId) return null;
+  const { data } = await sb.from("members").select("user_id").eq("user_id", ownerId).maybeSingle();
+  return data?.user_id ?? null;
 }
 
 export async function suggestCategoryAction(name: string) {
@@ -122,11 +134,18 @@ export async function createExpenseAction(
     if (amount === null || amount <= 0) return { ok: false, error: "Informe o valor." };
   }
 
+  // Valor que muda: o valor digitado (opcional) é o da conta do mês vigente; os meses seguintes usam como estimativa.
+  let monthAmount: number | null = null;
+  if (isVariable && input.amount.trim()) {
+    monthAmount = parseBRL(input.amount);
+    if (monthAmount === null || monthAmount <= 0) return { ok: false, error: "Valor do mês inválido." };
+  }
+
   // "Já paga": só para despesas à vista (não cartão nem parcelado). Se o valor varia, usa o valor digitado.
   const paidNow = !!input.paidNow && input.mode !== "installment" && payment !== "card";
   let paidAmount: number | null = null;
   if (paidNow) {
-    paidAmount = isVariable ? parseBRL(input.amount) : amount;
+    paidAmount = isVariable ? monthAmount : amount;
     if (paidAmount === null || paidAmount <= 0) return { ok: false, error: "Informe o valor pago." };
   }
 
@@ -181,6 +200,7 @@ export async function createExpenseAction(
       business_day,
       first_due_date,
       installments,
+      owner_user_id: await validOwner(sb, input.ownerId),
     })
     .select("id")
     .single();
@@ -197,6 +217,15 @@ export async function createExpenseAction(
   if (billsError) {
     await sb.from("expenses").delete().eq("id", created.id);
     return { ok: false, error: "Não consegui criar os vencimentos. Tente de novo." };
+  }
+
+  if (monthAmount !== null) {
+    await sb
+      .from("bills")
+      .update({ amount: monthAmount, is_estimate: false })
+      .eq("expense_id", created.id)
+      .eq("due_date", first_due_date);
+    if (input.mode === "monthly") await propagateEstimate(sb, created.id, first_due_date, monthAmount);
   }
 
   if (paidNow && paidAmount !== null) {
@@ -231,6 +260,8 @@ export interface UpdateExpenseInput {
   payment: "pix" | "boleto" | "debit" | "cash" | "card";
   cardId: string | null;
   amount: string;
+  ownerId?: string | null;
+  isVariable?: boolean;
 }
 
 export async function updateExpenseAction(
@@ -257,8 +288,11 @@ export async function updateExpenseAction(
     }
   }
 
-  const editAmount = row.recurrence !== "installment" && !row.is_variable;
-  let amount: number | null = row.amount === null ? null : Number(row.amount);
+  const canToggleVariable = row.recurrence === "monthly";
+  const nextVariable = canToggleVariable && input.isVariable !== undefined ? input.isVariable : (row.is_variable as boolean);
+  const turningVariable = nextVariable && !row.is_variable;
+  const editAmount = row.recurrence !== "installment" && !nextVariable;
+  let amount: number | null = nextVariable ? null : row.amount === null ? null : Number(row.amount);
   if (editAmount) {
     amount = parseBRL(input.amount);
     if (amount === null || amount <= 0) return { ok: false, error: "Informe o valor." };
@@ -266,13 +300,19 @@ export async function updateExpenseAction(
 
   const { error } = await sb
     .from("expenses")
-    .update({ name, category_id: input.categoryId, payment_method: payment, card_id: cardId, amount })
+    .update({
+      name, category_id: input.categoryId, payment_method: payment, card_id: cardId, amount,
+      is_variable: nextVariable, owner_user_id: await validOwner(sb, input.ownerId),
+    })
     .eq("id", input.id);
   if (error) return { ok: false, error: "Não consegui salvar. Tente de novo." };
 
   // O novo valor vale para as contas ainda não pagas; o que já foi pago não muda.
   if (editAmount) {
-    await sb.from("bills").update({ amount }).eq("expense_id", input.id).eq("status", "pending");
+    await sb.from("bills").update({ amount, is_estimate: false }).eq("expense_id", input.id).eq("status", "pending");
+  } else if (turningVariable) {
+    // Passou a "muda todo mês": os valores que já estavam nas contas pendentes viram estimativa.
+    await sb.from("bills").update({ is_estimate: true }).eq("expense_id", input.id).eq("status", "pending").not("amount", "is", null);
   }
 
   revalidatePath("/", "layout");
@@ -304,9 +344,16 @@ export async function markPaidAction(formData: FormData) {
 
   const { error } = await sb
     .from("bills")
-    .update({ amount, interest: round2(interest), status: "paid", paid_on: paidOn })
+    .update({ amount, interest: round2(interest), status: "paid", paid_on: paidOn, is_estimate: false })
     .eq("id", id);
   if (error) redirect(`/pagar/${id}?erro=salvar`);
+
+  // Conta de valor variável: o que foi pago agora vira a estimativa dos próximos meses.
+  const { data: paidBill } = await sb.from("bills").select("expense_id,due_date").eq("id", id).maybeSingle();
+  if (paidBill) {
+    const { data: exp } = await sb.from("expenses").select("is_variable").eq("id", paidBill.expense_id).maybeSingle();
+    if (exp?.is_variable) await propagateEstimate(sb, paidBill.expense_id as string, paidBill.due_date as string, amount);
+  }
 
   revalidatePath("/", "layout");
   redirect("/");
@@ -333,7 +380,10 @@ export async function addCardAction(formData: FormData) {
   if (!name || !ok(closing) || !ok(due)) redirect("/config?erro=cartao-invalido");
   const { error } = await sb
     .from("cards")
-    .insert({ household_id: member.household_id, name, closing_day: closing, due_day: due, kind });
+    .insert({
+      household_id: member.household_id, name, closing_day: closing, due_day: due, kind,
+      owner_user_id: await validOwner(sb, String(formData.get("owner") ?? "") || null),
+    });
   if (error) redirect("/config?erro=cartao-limite");
   revalidatePath("/", "layout");
   redirect("/config");
@@ -371,4 +421,14 @@ export async function createTelegramCodeAction(): Promise<{ code?: string; error
   const { data, error } = await sb.rpc("create_telegram_link_code");
   if (error || !data) return { error: "Não consegui gerar o código." };
   return { code: data as string };
+}
+
+/* ---------- Visão (Casal / pessoa) ---------- */
+
+export async function setVisaoAction(value: string) {
+  const { cookies } = await import("next/headers");
+  const jar = await cookies();
+  if (value === "casal") jar.delete("visao");
+  else jar.set("visao", value, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", httpOnly: true });
+  revalidatePath("/", "layout");
 }

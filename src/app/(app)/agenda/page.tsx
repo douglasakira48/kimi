@@ -1,5 +1,7 @@
 import Link from "next/link";
 import BillRow from "@/components/BillRow";
+import VisaoFilter from "@/components/VisaoFilter";
+import { filterBills, getVisao } from "@/lib/visao";
 import { loadLookups, toBill } from "@/lib/data";
 import {
   addDays, daysInMonth, formatCurto, formatExtenso, mesNome, parseYMD, shiftMonth, todayInSP, toYMD, weekday, type YMD,
@@ -60,7 +62,8 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     sb.from("bills").select("*").gte("due_date", start).lte("due_date", end).order("due_date"),
     loadLookups(sb),
   ]);
-  const bills = (data ?? []).map(toBill);
+  const visao = await getVisao(lk);
+  const bills = filterBills((data ?? []).map(toBill), lk, visao);
 
   const byDay = new Map<string, Bill[]>();
   for (const b of bills) {
@@ -95,6 +98,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   return (
     <div className="stack">
       <h1>Agenda</h1>
+      <VisaoFilter members={lk.members} current={visao} />
 
       <div className="segment" role="group" aria-label="Visualização">
         {VIEWS.map((o) => (

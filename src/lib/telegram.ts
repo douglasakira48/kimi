@@ -72,8 +72,9 @@ function actionButtons(billId: string): Button[] {
 
 export function askAmountMessage(b: BillInfo, overdue: boolean) {
   const when = overdue ? `Venceu ${formatCurto(b.due_date)}` : `Amanhã vence (${formatCurto(b.due_date)})`;
+  const guess = b.amount !== null ? `\nEstimei ${formatBRL(b.amount)} pelo último valor.` : "";
   return {
-    text: `${when}: ${b.name}.\nQual o valor da conta? Responda só com o número, por exemplo 241,70.`,
+    text: `${when}: ${b.name}.${guess}\nQual o valor da conta? Responda só com o número, por exemplo 241,70.`,
     buttons: undefined as Button[] | undefined,
   };
 }

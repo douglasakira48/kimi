@@ -56,6 +56,10 @@ export default async function PayPage({
         </div>
       </div>
 
+      {bill.status === "pending" && bill.is_estimate && bill.amount !== null && (
+        <div className="hint-box">Valor estimado pelo último mês. Confirme o valor real da conta.</div>
+      )}
+
       {erro && ERROS[erro] && <div className="error" role="alert">{ERROS[erro]}</div>}
 
       {bill.status === "paid" ? (

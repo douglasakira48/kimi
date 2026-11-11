@@ -181,3 +181,16 @@ h2 { font-size: 20px; font-weight: 700; }
 .day-head { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 0 4px; font-size: 14px; font-weight: 600; color: var(--ink2); }
 
 .logo-img { border-radius: 28%; display: block; }
+
+/* Estimativas e gráficos */
+.tag-est { font-size: 12px; font-weight: 600; color: var(--juros-ink); background: var(--juros-bg); border-radius: 999px; padding: 1px 8px; }
+.evo { display: flex; align-items: flex-end; gap: 6px; height: 120px; }
+.evo-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; height: 100%; min-width: 0; }
+.evo-col .seg-paid { background: var(--ok); }
+.evo-col .seg-pend { background: var(--accent); }
+.evo-col .seg-est { background: repeating-linear-gradient(45deg, var(--accent-bg), var(--accent-bg) 4px, #c9d6f7 4px, #c9d6f7 8px); border: 1px dashed var(--accent); }
+.evo-col.now .evo-label { font-weight: 700; color: var(--ink); }
+.evo-label { font-size: 11px; text-align: center; color: var(--ink2); margin-top: 4px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; }
+.panel-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }

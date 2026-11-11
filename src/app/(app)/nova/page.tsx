@@ -21,6 +21,8 @@ export default async function NewExpensePage() {
         categories={Array.from(lk.categories.values())}
         cards={Array.from(lk.cards.values())}
         today={todayInSP()}
+        members={lk.members}
+        defaultOwner=""
       />
     </div>
   );

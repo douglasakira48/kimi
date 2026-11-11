@@ -2,6 +2,8 @@ import Link from "next/link";
 import { loadLookups, toBill } from "@/lib/data";
 import { addDays, daysInMonth, formatExtenso, mesNome, parseYMD, shiftMonth, todayInSP, toYMD } from "@/lib/dates";
 import BillRow from "@/components/BillRow";
+import VisaoFilter from "@/components/VisaoFilter";
+import { filterBills, getVisao, inVisao } from "@/lib/visao";
 import { formatBRL } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 import type { Bill } from "@/lib/types";
@@ -41,6 +43,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     p.y === cur.y && p.m === cur.m ? "/" : `/?m=${ymKey(p.y, p.m)}`;
 
   const lk = await loadLookups(sb);
+  const visao = await getVisao(lk);
   let pending: Bill[];
   let paidBills: Bill[] = [];
   let paid: number;
@@ -48,14 +51,16 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   if (isCurrent) {
     const [pendingRes, paidRes] = await Promise.all([
       sb.from("bills").select("*").eq("status", "pending").lte("due_date", monthEnd).order("due_date"),
-      sb.from("bills").select("amount,interest").eq("status", "paid").gte("due_date", monthStart).lte("due_date", monthEnd),
+      sb.from("bills").select("expense_id,amount,interest").eq("status", "paid").gte("due_date", monthStart).lte("due_date", monthEnd),
     ]);
-    pending = (pendingRes.data ?? []).map(toBill);
-    paid = (paidRes.data ?? []).reduce((acc, r) => acc + Number(r.amount ?? 0) + Number(r.interest ?? 0), 0);
+    pending = filterBills((pendingRes.data ?? []).map(toBill), lk, visao);
+    paid = (paidRes.data ?? [])
+      .filter((r) => inVisao(r.expense_id as string, lk, visao))
+      .reduce((acc, r) => acc + Number(r.amount ?? 0) + Number(r.interest ?? 0), 0);
   } else {
     const { data } = await sb
       .from("bills").select("*").gte("due_date", monthStart).lte("due_date", monthEnd).order("due_date");
-    const all = (data ?? []).map(toBill);
+    const all = filterBills((data ?? []).map(toBill), lk, visao);
     pending = all.filter((b) => b.status === "pending");
     paidBills = all.filter((b) => b.status === "paid");
     paid = paidBills.reduce((acc, b) => acc + (b.amount ?? 0) + b.interest, 0);
@@ -75,6 +80,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   const inMonth = pending.filter((b) => b.due_date <= monthEnd);
   const toPay = inMonth.reduce((acc, b) => acc + (b.amount ?? 0), 0);
+  const estimated = inMonth.filter((b) => b.is_estimate && b.amount !== null).reduce((acc, b) => acc + (b.amount ?? 0), 0);
   const unknown = inMonth.filter((b) => b.amount === null);
   const total = paid + toPay;
 
@@ -120,12 +126,15 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         ) : <span className="off" />}
       </div>
 
+      <VisaoFilter members={lk.members} current={visao} />
+
       <div className="stack-sm" style={{ gap: 10 }}>
         <div className="muted">A pagar</div>
         <div className="big-number num">{formatBRL(toPay)}</div>
         <div className="progress" aria-hidden="true">
           <div style={{ width: `${total > 0 ? Math.round((paid / total) * 100) : 0}%` }} />
         </div>
+        {estimated > 0 && <div className="small num">Inclui {formatBRL(estimated)} estimados</div>}
         <div className="row-between small num">
           <span>Pago {formatBRL(paid)}</span>
           {unknown.length > 0 && (

@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { createExpenseAction, suggestCategoryAction } from "@/app/actions";
 import { firstMonthlyDue } from "@/lib/bills";
 import { cardDueDate, dayInMonth, formatCurto, formatData, parseYMD, shiftMonth } from "@/lib/dates";
+import OwnerField from "@/components/OwnerField";
 import { formatBRL, parseBRL, splitInstallments } from "@/lib/money";
 
 interface CardOpt {
@@ -14,12 +15,15 @@ interface CardOpt {
   closing_day: number;
   due_day: number;
   kind: "credit" | "debit";
+  owner_user_id: string | null;
 }
 
 interface Props {
   categories: { id: string; name: string }[];
   cards: CardOpt[];
   today: string;
+  members: { user_id: string; display_name: string }[];
+  defaultOwner: string;
 }
 
 type Mode = "once" | "monthly" | "installment";
@@ -31,7 +35,7 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "installment", label: "Parcelado" },
 ];
 
-export default function NewExpenseForm({ categories, cards, today }: Props) {
+export default function NewExpenseForm({ categories, cards, today, members, defaultOwner }: Props) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -51,6 +55,7 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
   const [n, setN] = useState(5);
   const [date, setDate] = useState(today);
   const [paidNow, setPaidNow] = useState(false);
+  const [ownerId, setOwnerId] = useState(defaultOwner);
 
   const effectivePayment: Payment = mode === "installment" ? "card" : payment;
   const card = creditCards.find((c) => c.id === cardId) ?? null;
@@ -117,7 +122,7 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
       const res = await createExpenseAction({
         name, amount, isVariable: mode !== "installment" && isVariable, categoryId: categoryId || null,
         mode, payment: effectivePayment, cardId: usesCard || effectivePayment === "debit" ? cardId || null : null,
-        installments, ruleKind: effectiveRuleKind, n, date, paidNow: paidNowOn,
+        installments, ruleKind: effectiveRuleKind, n, date, paidNow: paidNowOn, ownerId: ownerId || null,
       });
       if (res.ok) {
         router.push("/");
@@ -158,9 +163,14 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
             </label>
           )}
         </div>
-        {isVariable && mode !== "installment" && !paidNowOn ? (
-          <div className="hint-box">Você informa o valor no aviso, um dia antes do vencimento.</div>
-        ) : (
+        {isVariable && mode !== "installment" && (
+          <div className="small">
+            {mode === "monthly"
+              ? "Valor deste mês (opcional). Os próximos meses usam esse valor como estimativa até você informar o real."
+              : "Valor desta conta (opcional). Se deixar vazio, você informa no aviso."}
+          </div>
+        )}
+        {(
           <div className="prefix">
             <span>R$</span>
             <input
@@ -180,6 +190,8 @@ export default function NewExpenseForm({ categories, cards, today }: Props) {
           <input id="paidnow" type="checkbox" checked={paidNow} onChange={(e) => setPaidNow(e.target.checked)} />
         </label>
       )}
+
+      <OwnerField members={members} value={ownerId} onChange={setOwnerId} />
 
       <div className="field">
         <label htmlFor="name">O que é?</label>

@@ -26,6 +26,7 @@ export default function BillRow({ bill, lk, today, last }: { bill: Bill; lk: Loo
   if (paid) meta = bill.paid_on ? `Pago em ${formatData(bill.paid_on)}` : "Pago";
   else if (late) meta = atraso === 1 ? "Venceu ontem" : `Venceu há ${atraso} dias`;
   if (extras.length) meta += `, ${extras.join(", ")}`;
+  const estimated = !paid && bill.is_estimate && bill.amount !== null;
 
   return (
     <div className="bill">
@@ -48,10 +49,18 @@ export default function BillRow({ bill, lk, today, last }: { bill: Bill; lk: Loo
         <span className={`bill-meta ${late ? "late" : ""}`}>{meta}</span>
       </div>
       <div className="bill-value">
-        {bill.amount === null ? (
+        {bill.amount === null || estimated ? (
           <>
-            <Link href={`/pagar/${bill.id}`} className="chip-ask">Informar valor</Link>
-            {last !== undefined && <span className="bill-meta num">último {formatBRL(last)}</span>}
+            {estimated ? (
+              <span className="bill-amount">~{formatBRL(bill.amount ?? 0)}</span>
+            ) : (
+              <Link href={`/pagar/${bill.id}`} className="chip-ask">Informar valor</Link>
+            )}
+            {estimated ? (
+              <span className="tag-est">estimado</span>
+            ) : (
+              last !== undefined && <span className="bill-meta num">último {formatBRL(last)}</span>
+            )}
           </>
         ) : (
           <span className="bill-amount">{formatBRL(bill.amount + (paid ? bill.interest : 0))}</span>

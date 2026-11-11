@@ -24,6 +24,7 @@ export interface Card {
   closing_day: number;
   due_day: number;
   kind: "credit" | "debit";
+  owner_user_id: string | null;
 }
 
 export interface Expense {
@@ -41,6 +42,7 @@ export interface Expense {
   first_due_date: YMD;
   installments: number | null;
   active: boolean;
+  owner_user_id: string | null;
 }
 
 export interface Bill {
@@ -53,6 +55,7 @@ export interface Bill {
   status: "pending" | "paid";
   paid_on: YMD | null;
   installment_no: number | null;
+  is_estimate: boolean;
 }
 
 export const PAYMENT_LABEL = {

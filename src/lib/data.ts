@@ -19,6 +19,7 @@ export function toBill(r: Record<string, unknown>): Bill {
     status: r.status as Bill["status"],
     paid_on: (r.paid_on as string | null) ?? null,
     installment_no: num(r.installment_no),
+    is_estimate: (r.is_estimate as boolean | undefined) ?? false,
   };
 }
 
@@ -38,6 +39,7 @@ export function toExpense(r: Record<string, unknown>): Expense {
     first_due_date: r.first_due_date as string,
     installments: num(r.installments),
     active: r.active as boolean,
+    owner_user_id: (r.owner_user_id as string | null | undefined) ?? null,
   };
 }
 
@@ -45,19 +47,22 @@ export interface Lookups {
   expenses: Map<string, Expense>;
   cards: Map<string, Card>;
   categories: Map<string, Category>;
+  members: { user_id: string; display_name: string }[];
 }
 
 /** Despesas, cartões e categorias da casa, indexados por id (são poucos registros). */
 export async function loadLookups(sb: SupabaseClient): Promise<Lookups> {
-  const [e, c, k] = await Promise.all([
+  const [e, c, k, mm] = await Promise.all([
     sb.from("expenses").select("*"),
-    sb.from("cards").select("id,name,closing_day,due_day,kind").order("created_at"),
+    sb.from("cards").select("id,name,closing_day,due_day,kind,owner_user_id").order("created_at"),
     sb.from("categories").select("id,name").order("name"),
+    sb.from("members").select("user_id,display_name").order("display_name"),
   ]);
   return {
     expenses: new Map((e.data ?? []).map((r) => [r.id as string, toExpense(r)])),
     cards: new Map((c.data ?? []).map((r) => [r.id as string, r as Card])),
     categories: new Map((k.data ?? []).map((r) => [r.id as string, r as Category])),
+    members: (mm.data ?? []) as { user_id: string; display_name: string }[],
   };
 }
 
